@@ -1,0 +1,25 @@
+# Rust
+/target
+Cargo.lock
+
+# RustRover/IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Claude AI
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor backups
+*~
+*.swp
+*.swo
+.vscode/
+
+# Debug files
+*.pdb
