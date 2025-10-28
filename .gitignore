@@ -10,6 +10,7 @@ Cargo.lock
 
 # Claude AI
 CLAUDE.md
+.claude
 
 # OS
 .DS_Store
@@ -23,3 +24,12 @@ Thumbs.db
 
 # Debug files
 *.pdb
+
+# Test data
+test_data/
+*.csv
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
