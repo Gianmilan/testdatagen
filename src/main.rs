@@ -1,13 +1,19 @@
-mod csv_parser;
 mod api;
+mod csv_parser;
+mod generators;
 
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
 use clap::{Arg, ArgMatches, Command};
+use dotenvy::dotenv;
+use log::info;
 use std::error::Error;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    dotenv().ok();
+    env_logger::init();
+
     let matches: ArgMatches = Command::new("testdatagen")
         .version("0.0.1")
         .author("GS")
@@ -39,11 +45,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .map(|s| s.as_str())
             .unwrap_or("8080");
 
-        println!(
+        info!(
             "Starting test_data_gen web server on http://localhost:{}",
             port
         );
-        println!("Upload CSV files at http://localhost:{}/api/upload", port);
+        info!("Upload CSV files at http://localhost:{}/api/upload", port);
 
         run_server(port).await?;
     } else {
@@ -68,7 +74,10 @@ async fn run_server(port: &str) -> std::io::Result<()> {
             web::scope("/api")
                 .route("/health", web::get().to(api::handlers::health_check))
                 .route("/upload", web::post().to(api::handlers::upload_csv))
-                .route("/generate", web::post().to(api::handlers::generate_placeholder)),
+                .route(
+                    "/generate",
+                    web::post().to(api::handlers::generate_placeholder),
+                ),
         )
     })
     .bind(&bind_address)?

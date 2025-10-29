@@ -20,7 +20,7 @@ pub fn parse_csv_from_bytes(data: &[u8]) -> Result<CsvData, Box<dyn Error>> {
 }
 
 pub fn parse_csv_from_file(path: &str) -> Result<CsvData, Box<dyn Error>> {
-    let file = std::fs::File::open(path)?;
+    let file = File::open(path)?;
     let mut rdr = Reader::from_reader(file);
 
     let headers = rdr.headers()?.iter().map(|s| s.to_string()).collect();

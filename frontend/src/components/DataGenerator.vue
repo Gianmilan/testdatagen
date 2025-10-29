@@ -72,9 +72,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import axios, { AxiosError } from 'axios'
-import type { ApiResponse, ErrorResponse } from '../types'
+import {ref} from 'vue'
+import axios, {AxiosError} from 'axios'
+import type {ApiResponse, ErrorResponse} from '@/types'
 
 const emit = defineEmits<{
   'data-generated': [data: ApiResponse]
@@ -240,12 +240,6 @@ const handleGenerate = async () => {
   transform: translateY(-2px);
 }
 
-.btn-preset.active {
-  background: var(--primary-color, #667eea);
-  color: white;
-  border-color: var(--primary-color, #667eea);
-}
-
 .btn-preset:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -277,7 +271,7 @@ const handleGenerate = async () => {
   transform: none;
 }
 
-.btn-generate .icon {
+.btn-generate {
   margin-right: 0.5rem;
   font-size: 1.25rem;
 }
@@ -348,7 +342,7 @@ const handleGenerate = async () => {
     color: #e2e8f0;
   }
 
-  .btn-preset.active {
+  .btn-preset {
     background: #667eea;
     color: white;
   }
