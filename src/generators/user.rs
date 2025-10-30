@@ -5,10 +5,6 @@ use rand::Rng;
 pub struct UserGenerator;
 
 impl DataGenerator for UserGenerator {
-    fn name(&self) -> &str {
-        "user"
-    }
-
     fn headers(&self) -> Vec<String> {
         vec!["ID".into(), "Name".into(), "Email".into(), "Age".into(), "City".into()]
     }

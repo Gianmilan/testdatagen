@@ -29,6 +29,14 @@ Thumbs.db
 test_data/
 *.csv
 
+# Database & SQLx
+# Runtime database files (your local data - should NOT be committed)
+*.db
+*.db-shm
+*.db-wal
+# SQLx query cache (generated file - can be committed for CI/CD but usually ignored)
+.sqlx/
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

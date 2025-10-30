@@ -1,6 +1,7 @@
-mod health;
-mod upload;
-mod generate;
+pub mod health;
+pub mod upload;
+pub mod generate;
+pub mod datasets;
 
 use serde::{Deserialize, Serialize};
 use crate::csv_parser::CsvData;

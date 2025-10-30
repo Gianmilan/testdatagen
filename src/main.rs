@@ -1,5 +1,6 @@
 mod api;
 mod csv_parser;
+mod db;
 mod generators;
 
 use actix_cors::Cors;
@@ -7,12 +8,24 @@ use actix_web::{App, HttpServer, web};
 use clap::{Arg, ArgMatches, Command};
 use dotenvy::dotenv;
 use log::info;
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::{SqlitePool, migrate};
 use std::error::Error;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     env_logger::init();
+
+    let database_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    info!("Using database: {}", database_url);
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
+        .await?;
+
+    migrate!().run(&pool).await?;
 
     let matches: ArgMatches = Command::new("testdatagen")
         .version("0.0.1")
@@ -45,13 +58,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .map(|s| s.as_str())
             .unwrap_or("8080");
 
+        let max_connections_val = dotenvy::var("MAX_CONNECTIONS")
+            .unwrap_or_else(|_| "5".to_string())
+            .parse()
+            .unwrap_or(5);
+
+        info!("Connecting to SQLite database");
+        let pool = SqlitePoolOptions::new()
+            .max_connections(max_connections_val)
+            .connect(&database_url)
+            .await?;
+
+        info!("Running migrations");
+        sqlx::migrate!("./migrations").run(&pool).await?;
+
         info!(
             "Starting test_data_gen web server on http://localhost:{}",
             port
         );
-        info!("Upload CSV files at http://localhost:{}/api/upload", port);
 
-        run_server(port).await?;
+        run_server(port, pool).await?;
     } else {
         let filename = matches.get_one::<String>("FILE").unwrap();
         run_cli(filename)?;
@@ -60,25 +86,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn run_server(port: &str) -> std::io::Result<()> {
+async fn run_server(port: &str, pool: SqlitePool) -> std::io::Result<()> {
     let bind_address = format!("127.0.0.1:{}", port);
 
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
 
-        App::new().wrap(cors).service(
-            web::scope("/api")
-                .route("/health", web::get().to(api::handlers::health_check))
-                .route("/upload", web::post().to(api::handlers::upload_csv))
-                .route(
-                    "/generate",
-                    web::post().to(api::handlers::generate_placeholder),
-                ),
-        )
+        App::new()
+            .app_data(web::Data::new(pool.clone()))
+            .wrap(cors)
+            .service(
+                web::scope("/api")
+                    .route("/health", web::get().to(api::handlers::health_check))
+                    .route("/upload", web::post().to(api::handlers::upload_csv))
+                    .route(
+                        "/generate",
+                        web::post().to(api::handlers::generate_placeholder),
+                    )
+                    .route("/datasets", web::get().to(api::handlers::datasets::list))
+                    .route("/datasets", web::post().to(api::handlers::datasets::save))
+                    .route(
+                        "datasets/{id}",
+                        web::get().to(api::handlers::datasets::get_one),
+                    )
+                    .route(
+                        "datasets/{id}",
+                        web::delete().to(api::handlers::datasets::delete),
+                    ),
+            )
     })
     .bind(&bind_address)?
     .run()
