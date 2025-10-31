@@ -1,6 +1,6 @@
-mod user;
+mod flexible;
 
-pub use user::UserGenerator;
+pub use flexible::FlexibleGenerator;
 
 use rand::Rng;
 

@@ -1,8 +1,10 @@
-use actix_web::{web, HttpResponse, Responder};
-use sqlx::SqlitePool;
-use crate::db::models::SaveDatasetRequest;
+use crate::csv_parser::CsvData;
+use crate::db::models::{GenerateFromDatasetRequest, SaveDatasetRequest};
 use crate::db::operations;
+use crate::generators::{DataGenerator, FlexibleGenerator};
+use actix_web::{HttpResponse, Responder, web};
 use log::{error, info};
+use sqlx::SqlitePool;
 
 pub async fn list(pool: web::Data<SqlitePool>) -> impl Responder {
     info!("Listing all datasets");
@@ -27,8 +29,10 @@ pub async fn save(
     match operations::save_dataset(
         pool.get_ref(),
         &req.name,
-        &req.csv_data,
+        &req.headers,
         &req.data_type,
+        req.column_types.as_ref(),
+        req.sample_data.as_deref(),
     )
     .await
     {
@@ -53,17 +57,13 @@ pub async fn get_one(pool: web::Data<SqlitePool>, path: web::Path<i64>) -> impl 
     info!("Getting dataset with id: {}", id);
 
     match operations::get_datasets(pool.get_ref(), id).await {
-        Ok(Some((dataset, csv_data))) => {
-            HttpResponse::Ok().json(serde_json::json!({
-                "dataset": dataset,
-                "data": csv_data
-            }))
-        }
-        Ok(None) => {
-            HttpResponse::NotFound().json(serde_json::json!({
-                "error": format!("Dataset with id {} not found", id)
-            }))
-        }
+        Ok(Some((dataset, csv_data))) => HttpResponse::Ok().json(serde_json::json!({
+            "dataset": dataset,
+            "data": csv_data
+        })),
+        Ok(None) => HttpResponse::NotFound().json(serde_json::json!({
+            "error": format!("Dataset with id {} not found", id)
+        })),
         Err(e) => {
             error!("Failed to get dataset: {}", e);
             HttpResponse::InternalServerError().json(serde_json::json!({
@@ -84,11 +84,9 @@ pub async fn delete(pool: web::Data<SqlitePool>, path: web::Path<i64>) -> impl R
                 "message": "Dataset deleted successfully"
             }))
         }
-        Ok(false) => {
-            HttpResponse::NotFound().json(serde_json::json!({
-                "error": format!("Dataset with id {} not found", id)
-            }))
-        }
+        Ok(false) => HttpResponse::NotFound().json(serde_json::json!({
+            "error": format!("Dataset with id {} not found", id)
+        })),
         Err(e) => {
             error!("Failed to delete dataset: {}", e);
             HttpResponse::InternalServerError().json(serde_json::json!({
@@ -96,4 +94,68 @@ pub async fn delete(pool: web::Data<SqlitePool>, path: web::Path<i64>) -> impl R
             }))
         }
     }
+}
+
+pub async fn generate_from_dataset(
+    pool: web::Data<SqlitePool>,
+    path: web::Path<i64>,
+    req: web::Json<GenerateFromDatasetRequest>,
+) -> impl Responder {
+    let id = path.into_inner();
+    let row_count = req.row_count.unwrap_or(20);
+
+    info!("Generating {} rows from dataset with id: {}", row_count, id);
+
+    if row_count == 0 || row_count > 1000 {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "row_count must be between 1 and 1000"
+        }));
+    }
+
+    // Fetch dataset
+    let dataset_result = operations::get_datasets(pool.get_ref(), id).await;
+
+    let (dataset, _) = match dataset_result {
+        Ok(Some(data)) => data,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": format!("Dataset with id {} not found", id)
+            }));
+        }
+        Err(e) => {
+            error!("Failed to fetch dataset: {}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": format!("Failed to fetch dataset: {}", e)
+            }));
+        }
+    };
+
+    let headers: Vec<String> = match serde_json::from_str(&dataset.headers) {
+        Ok(h) => h,
+        Err(e) => {
+            error!("Failed to parse headers: {}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to parse dataset headers"
+            }));
+        }
+    };
+
+    let generator = FlexibleGenerator::new(headers.clone());
+
+    let mut rng = rand::rng();
+    let rows: Vec<Vec<String>> = (1..=row_count)
+        .map(|i| generator.generate_row(i, &mut rng))
+        .collect();
+
+    let csv_data = CsvData { headers, rows };
+
+    info!(
+        "Generated {} rows from dataset '{}'",
+        row_count, dataset.name
+    );
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "data": csv_data,
+        "message": format!("Generated {} rows from dataset '{}'", row_count, dataset.name)
+    }))
 }

@@ -1,11 +1,11 @@
 use actix_multipart::Multipart;
 use actix_web::HttpResponse;
 use futures_util::stream::StreamExt;
-use log::{info, debug, warn, error};
+use log::{debug, error, info, warn};
 use std::time::Instant;
 
-use crate::csv_parser::parse_csv_from_bytes;
 use super::{ErrorResponse, SuccessResponse};
+use crate::csv_parser::parse_csv_from_bytes;
 
 pub async fn upload_csv(mut payload: Multipart) -> HttpResponse {
     let start_time = Instant::now();
@@ -52,7 +52,11 @@ pub async fn upload_csv(mut payload: Multipart) -> HttpResponse {
         Ok(csv_data) => {
             let row_count = csv_data.rows.len();
             let elapsed = start_time.elapsed();
-            info!("Successfully parsed CSV with {} rows in {:.2}ms", row_count, elapsed.as_secs_f64() * 1000.0);
+            info!(
+                "Successfully parsed CSV with {} rows in {:.2}ms",
+                row_count,
+                elapsed.as_secs_f64() * 1000.0
+            );
 
             HttpResponse::Ok().json(SuccessResponse {
                 data: csv_data,
@@ -64,6 +68,6 @@ pub async fn upload_csv(mut payload: Multipart) -> HttpResponse {
             HttpResponse::BadRequest().json(ErrorResponse {
                 error: format!("Failed to parse CSV: {}", e),
             })
-        },
+        }
     }
 }

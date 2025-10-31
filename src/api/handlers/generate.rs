@@ -1,30 +1,17 @@
-use super::SuccessResponse;
 use crate::csv_parser::CsvData;
-use crate::generators::{DataGenerator, UserGenerator};
-use actix_web::{HttpResponse, web};
-use log::{debug, error, info};
+use crate::generators::{DataGenerator, FlexibleGenerator};
+use actix_web::{HttpResponse, Responder, web};
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
-use std::time::Instant;
-use crate::db;
 
 #[derive(Deserialize, Serialize)]
 pub struct GenerateRequest {
     pub row_count: Option<usize>,
     pub save: Option<bool>,
+    pub headers: Option<Vec<String>>,
 }
 
-pub async fn generate_placeholder(
-    payload: web::Json<GenerateRequest>,
-    pool: web::Data<SqlitePool>,
-) -> HttpResponse {
-    let start_time = Instant::now();
-    let row_count = payload.row_count.unwrap_or(20).min(1000);
-
-    info!("Received request to generate {} rows", row_count);
-    debug!("Initializing UserGenerator");
-
-    let generator = UserGenerator;
+fn generate_with_generator<G: DataGenerator>(generator: G, row_count: usize) -> CsvData {
     let mut rng = rand::rng();
     let headers = generator.headers();
 
@@ -33,37 +20,38 @@ pub async fn generate_placeholder(
         .map(|i| generator.generate_row(i, &mut rng))
         .collect();
 
-    let csv_data = CsvData { headers, rows };
+    CsvData { headers, rows }
+}
 
-    if let Some(true) = payload.save {
-        let name = format!(
-            "Generated {}",
-            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
-        );
+pub async fn generate_placeholder(req: web::Json<GenerateRequest>) -> impl Responder {
+    let row_count = req.row_count.unwrap_or(20);
 
-        match db::operations::save_dataset(&pool, &name, &csv_data, "generated").await {
-            Ok(id) => {
-                info!("Saved dataset with id: {}", id);
-            }
-            Err(e) => {
-                error!("Failed to save dataset: {}", e);
-            }
-        }
+    info!("Generating {} placeholder rows", row_count);
+
+    if row_count == 0 || row_count > 1000 {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "row_count must be between 1 and 1000"
+        }));
     }
 
-    let elapsed = start_time.elapsed();
-    info!(
-        "Successfully generated {} rows in {:.2}ms",
-        row_count,
-        elapsed.as_secs_f64() * 1000.0
-    );
+    // Use provided headers or default ones
+    let headers = req.headers.clone().unwrap_or_else(|| {
+        vec![
+            "id".to_string(),
+            "name".to_string(),
+            "email".to_string(),
+            "age".to_string(),
+            "city".to_string(),
+        ]
+    });
 
-    HttpResponse::Ok().json(SuccessResponse {
-        data: csv_data,
-        message: format!(
-            "Generated {} sample row{}",
-            row_count,
-            if row_count == 1 { "" } else { "s" }
-        ),
-    })
+    let generator = FlexibleGenerator::new(headers.clone());
+    let csv_data = generate_with_generator(generator, row_count);
+
+    info!("Generated {} rows successfully", row_count);
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "data": csv_data,
+        "message": format!("Generated {} rows successfully", row_count)
+    }))
 }

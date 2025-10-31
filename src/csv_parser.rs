@@ -1,4 +1,4 @@
-use csv::{Reader};
+use csv::Reader;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::File;

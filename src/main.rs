@@ -2,6 +2,7 @@ mod api;
 mod csv_parser;
 mod db;
 mod generators;
+mod multipart;
 
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
@@ -104,18 +105,26 @@ async fn run_server(port: &str, pool: SqlitePool) -> std::io::Result<()> {
                     .route("/health", web::get().to(api::handlers::health_check))
                     .route("/upload", web::post().to(api::handlers::upload_csv))
                     .route(
+                        "/extract-headers",
+                        web::post().to(api::handlers::extract_headers),
+                    )
+                    .route(
                         "/generate",
                         web::post().to(api::handlers::generate_placeholder),
                     )
                     .route("/datasets", web::get().to(api::handlers::datasets::list))
                     .route("/datasets", web::post().to(api::handlers::datasets::save))
                     .route(
-                        "datasets/{id}",
+                        "/datasets/{id}",
                         web::get().to(api::handlers::datasets::get_one),
                     )
                     .route(
-                        "datasets/{id}",
+                        "/datasets/{id}",
                         web::delete().to(api::handlers::datasets::delete),
+                    )
+                    .route(
+                        "/datasets/{id}/generate",
+                        web::post().to(api::handlers::datasets::generate_from_dataset),
                     ),
             )
     })
