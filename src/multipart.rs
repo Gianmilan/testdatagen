@@ -67,3 +67,61 @@ pub async fn parse_multipart(mut payload: Multipart) -> Result<Vec<u8>, Multipar
 
     Ok(csv_bytes)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_multipart_error_nodata_display() {
+        let error = MultipartError::Nodata;
+        assert_eq!(error.to_string(), "No file data received");
+    }
+
+    #[test]
+    fn test_multipart_error_read_error_display() {
+        let error = MultipartError::ReadError("test error".to_string());
+        assert_eq!(error.to_string(), "Error reading file: test error");
+    }
+
+    #[test]
+    fn test_multipart_error_nodata_status_code() {
+        let error = MultipartError::Nodata;
+        assert_eq!(error.status_code(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_multipart_error_read_error_status_code() {
+        let error = MultipartError::ReadError("something went wrong".to_string());
+        assert_eq!(error.status_code(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_multipart_error_nodata_response() {
+        let error = MultipartError::Nodata;
+        let response = error.error_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_multipart_error_read_error_response() {
+        let error = MultipartError::ReadError("file corrupted".to_string());
+        let response = error.error_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_multipart_error_debug() {
+        let error = MultipartError::Nodata;
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("Nodata"));
+    }
+
+    #[test]
+    fn test_multipart_error_read_error_debug() {
+        let error = MultipartError::ReadError("test".to_string());
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("ReadError"));
+        assert!(debug_str.contains("test"));
+    }
+}
