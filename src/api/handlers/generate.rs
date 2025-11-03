@@ -1,5 +1,5 @@
 use crate::csv_parser::CsvData;
-use crate::generators::{DataGenerator, FlexibleGenerator};
+use crate::generators::{DataGenerator, SmartGenerator};
 use actix_web::{HttpResponse, Responder, web};
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
@@ -45,7 +45,7 @@ pub async fn generate_placeholder(req: web::Json<GenerateRequest>) -> impl Respo
         ]
     });
 
-    let generator = FlexibleGenerator::new(headers.clone());
+    let generator = SmartGenerator::new(headers.clone());
     let csv_data = generate_with_generator(generator, row_count);
 
     info!("Generated {} rows successfully", row_count);

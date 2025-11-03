@@ -1,11 +1,11 @@
 use super::DataGenerator;
 use rand::Rng;
 
-pub struct FlexibleGenerator {
+pub struct SmartGenerator {
     headers: Vec<String>,
 }
 
-impl FlexibleGenerator {
+impl SmartGenerator {
     pub fn new(headers: Vec<String>) -> Self {
         Self { headers }
     }
@@ -73,7 +73,7 @@ impl FlexibleGenerator {
     }
 }
 
-impl DataGenerator for FlexibleGenerator {
+impl DataGenerator for SmartGenerator {
     fn headers(&self) -> Vec<String> {
         self.headers.clone()
     }

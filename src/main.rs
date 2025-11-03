@@ -8,10 +8,13 @@ use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
 use clap::{Arg, ArgMatches, Command};
 use dotenvy::dotenv;
-use log::info;
+use log::{info, warn};
+use sqlx::__rt::timeout;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{SqlitePool, migrate};
 use std::error::Error;
+use std::time::Duration;
+use tokio::signal;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -90,7 +93,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 async fn run_server(port: &str, pool: SqlitePool) -> std::io::Result<()> {
     let bind_address = format!("127.0.0.1:{}", port);
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
             .allow_any_method()
@@ -120,17 +123,40 @@ async fn run_server(port: &str, pool: SqlitePool) -> std::io::Result<()> {
                     )
                     .route(
                         "/datasets/{id}",
+                        web::put().to(api::handlers::datasets::update),
+                    )
+                    .route(
+                        "/datasets/{id}",
                         web::delete().to(api::handlers::datasets::delete),
                     )
                     .route(
                         "/datasets/{id}/generate",
                         web::post().to(api::handlers::datasets::generate_from_dataset),
+                    )
+                    .route(
+                        "/datasets/{id}/duplicate",
+                        web::post().to(api::handlers::datasets::duplicate),
                     ),
             )
     })
     .bind(&bind_address)?
-    .run()
-    .await
+    .run();
+
+    let server_handle = server.handle();
+    tokio::spawn(server);
+
+    signal::ctrl_c().await.expect("Failed to listen for Ctrl-C");
+    info!("Shutting down gracefully...");
+
+    match timeout(Duration::from_secs(10), server_handle.stop(true)).await {
+        Ok(_) => info!("Server stopped gracefully"),
+        Err(_) => {
+            warn!("Graceful shutdown timed out, forcing shutdown");
+            server_handle.stop(false).await;
+        }
+    }
+    
+    Ok(())
 }
 
 fn run_cli(filename: &str) -> Result<(), Box<dyn Error>> {

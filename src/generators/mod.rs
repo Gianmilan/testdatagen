@@ -1,6 +1,6 @@
-mod flexible;
+mod smart_generator;
 
-pub use flexible::FlexibleGenerator;
+pub use smart_generator::SmartGenerator;
 
 use rand::Rng;
 

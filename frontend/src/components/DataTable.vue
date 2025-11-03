@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { CsvData } from '../types'
+import type { CsvData } from '@/types'
 
 interface Props {
   data: CsvData

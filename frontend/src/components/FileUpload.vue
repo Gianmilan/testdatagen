@@ -1,11 +1,11 @@
 <template>
   <div>
     <div
-      :class="['upload-zone', { 'drag-over': isDragging }]"
-      @click="triggerFileInput"
-      @dragover.prevent="handleDragOver"
-      @dragleave.prevent="handleDragLeave"
-      @drop.prevent="handleDrop"
+        :class="['upload-zone', { 'drag-over': isDragging }]"
+        @click="triggerFileInput"
+        @dragover.prevent="handleDragOver"
+        @dragleave.prevent="handleDragLeave"
+        @drop.prevent="handleDrop"
     >
       <div v-if="!isLoading">
         <div class="upload-icon">📁</div>
@@ -19,11 +19,11 @@
     </div>
 
     <input
-      ref="fileInput"
-      type="file"
-      class="file-input"
-      accept=".csv"
-      @change="handleFileSelect"
+        ref="fileInput"
+        type="file"
+        class="file-input"
+        accept=".csv"
+        @change="handleFileSelect"
     />
 
     <div v-if="selectedFile && !isLoading" class="file-info">
@@ -34,7 +34,7 @@
     <div v-if="selectedFile && !isLoading" class="save-options">
       <div class="option-group">
         <label class="checkbox-label">
-          <input type="checkbox" v-model="saveAsDataset" />
+          <input type="checkbox" v-model="saveAsDataset"/>
           <span>Save this schema as a dataset</span>
         </label>
       </div>
@@ -43,16 +43,16 @@
         <div class="option-group">
           <label class="input-label">Dataset name:</label>
           <input
-            type="text"
-            v-model="datasetName"
-            class="input"
-            placeholder="Enter dataset name"
+              type="text"
+              v-model="datasetName"
+              class="input"
+              placeholder="Enter dataset name"
           />
         </div>
 
         <div class="option-group">
           <label class="checkbox-label">
-            <input type="checkbox" v-model="saveSampleData" />
+            <input type="checkbox" v-model="saveSampleData"/>
             <span>Save sample data for pattern analysis</span>
           </label>
           <p class="help-text">
@@ -62,12 +62,13 @@
 
         <div class="option-group">
           <label class="checkbox-label">
-            <input type="checkbox" v-model="manualTypes" />
+            <input type="checkbox" v-model="manualTypes"/>
             <span>Manually specify column types</span>
           </label>
           <div class="warning-box">
             <span class="warning-icon">⚠️</span>
-            <p>FlexibleGenerator auto-detection is enabled by default and may make mistakes. Manual specification can improve accuracy.</p>
+            <p>FlexibleGenerator auto-detection is enabled by default and may make mistakes. Manual specification can
+              improve accuracy.</p>
           </div>
         </div>
 
@@ -88,9 +89,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import axios, { AxiosError } from 'axios'
-import type { HeadersResponse, ErrorResponse, SaveDatasetRequest, SaveDatasetResponse } from '../types'
+import {ref} from 'vue'
+import axios, {AxiosError} from 'axios'
+import type {HeadersResponse, ErrorResponse, SaveDatasetRequest, SaveDatasetResponse} from '@/types'
 
 interface Props {
   isLoading: boolean
@@ -116,17 +117,17 @@ const extractedHeaders = ref<string[]>([])
 const columnTypes = ref<Record<string, string>>({})
 
 const COLUMN_TYPE_OPTIONS = [
-  { value: 'auto', label: 'Auto Detect' },
-  { value: 'id', label: 'ID' },
-  { value: 'name', label: 'Name' },
-  { value: 'email', label: 'Email' },
-  { value: 'age', label: 'Age' },
-  { value: 'city', label: 'City' },
-  { value: 'country', label: 'Country' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'date', label: 'Date' },
-  { value: 'money', label: 'Money' },
-  { value: 'text', label: 'Text' }
+  {value: 'auto', label: 'Auto Detect'},
+  {value: 'id', label: 'ID'},
+  {value: 'name', label: 'Name'},
+  {value: 'email', label: 'Email'},
+  {value: 'age', label: 'Age'},
+  {value: 'city', label: 'City'},
+  {value: 'country', label: 'Country'},
+  {value: 'phone', label: 'Phone'},
+  {value: 'date', label: 'Date'},
+  {value: 'money', label: 'Money'},
+  {value: 'text', label: 'Text'}
 ]
 
 const triggerFileInput = () => {
@@ -210,10 +211,10 @@ const extractHeaders = async (file: File) => {
 
 const generateDatasetName = (filename: string): string => {
   return filename
-    .replace('.csv', '')
-    .replace(/[_-]/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
-    .trim()
+      .replace('.csv', '')
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())
+      .trim()
 }
 
 const saveDataset = async (headers: string[], file: File) => {
@@ -223,7 +224,7 @@ const saveDataset = async (headers: string[], file: File) => {
       headers: headers,
       data_type: 'uploaded',
       column_types: manualTypes.value ? columnTypes.value : undefined,
-      sample_data: saveSampleData.value ? await readSampleData(file) : undefined
+      sample_data: saveSampleData.value ? await readSampleData() : undefined
     }
 
     await axios.post<SaveDatasetResponse>('/api/datasets', request)
@@ -233,7 +234,7 @@ const saveDataset = async (headers: string[], file: File) => {
   }
 }
 
-const readSampleData = async (file: File): Promise<string[][]> => {
+const readSampleData = async (): Promise<string[][]> => {
   // For now, we'll skip reading actual CSV data
   // In a full implementation, you'd parse the CSV and return the first 100 rows
   return []

@@ -1,7 +1,7 @@
 use crate::csv_parser::CsvData;
 use crate::db::models::{GenerateFromDatasetRequest, SaveDatasetRequest};
 use crate::db::operations;
-use crate::generators::{DataGenerator, FlexibleGenerator};
+use crate::generators::{DataGenerator, SmartGenerator};
 use actix_web::{HttpResponse, Responder, web};
 use log::{error, info};
 use sqlx::SqlitePool;
@@ -140,7 +140,7 @@ pub async fn generate_from_dataset(
         }
     };
 
-    let generator = FlexibleGenerator::new(headers.clone());
+    let generator = SmartGenerator::new(headers.clone());
 
     let mut rng = rand::rng();
     let rows: Vec<Vec<String>> = (1..=row_count)
@@ -158,4 +158,77 @@ pub async fn generate_from_dataset(
         "data": csv_data,
         "message": format!("Generated {} rows from dataset '{}'", row_count, dataset.name)
     }))
+}
+
+pub async fn update(
+    pool: web::Data<SqlitePool>,
+    path: web::Path<i64>,
+    req: web::Json<SaveDatasetRequest>,
+) -> impl Responder {
+    let id = path.into_inner();
+    info!("Updating dataset with id: {}", id);
+
+    match operations::update_dataset(
+        pool.get_ref(),
+        id,
+        &req.name,
+        &req.headers,
+        &req.data_type,
+        req.column_types.as_ref(),
+        req.sample_data.as_deref(),
+    )
+    .await
+    {
+        Ok(true) => {
+            info!("Dataset {} updated successfully", id);
+            HttpResponse::Ok().json(serde_json::json!({
+                "id": id,
+                "message": "Dataset updated successfully"
+            }))
+        }
+        Ok(false) => HttpResponse::NotFound().json(serde_json::json!({
+            "error": format!("Dataset with id {} not found", id)
+        })),
+        Err(e) => {
+            error!("Failed to update dataset: {}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": format!("Failed to update dataset: {}", e)
+            }))
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct DuplicateDatasetRequest {
+    pub name: Option<String>,
+}
+
+pub async fn duplicate(
+    pool: web::Data<SqlitePool>,
+    path: web::Path<i64>,
+    req: web::Json<DuplicateDatasetRequest>,
+) -> impl Responder {
+    let id = path.into_inner();
+    info!("Duplicating dataset with id: {}", id);
+
+    let new_name = req.name.as_deref();
+
+    match operations::duplicate_dataset(pool.get_ref(), id, new_name).await {
+        Ok(Some(new_id)) => {
+            info!("Dataset {} duplicated successfully as {}", id, new_id);
+            HttpResponse::Ok().json(serde_json::json!({
+                "id": new_id,
+                "message": "Dataset duplicated successfully"
+            }))
+        }
+        Ok(None) => HttpResponse::NotFound().json(serde_json::json!({
+            "error": format!("Dataset with id {} not found", id)
+        })),
+        Err(e) => {
+            error!("Failed to duplicate dataset: {}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": format!("Failed to duplicate dataset: {}", e)
+            }))
+        }
+    }
 }

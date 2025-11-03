@@ -40,6 +40,7 @@ export interface Dataset {
   column_count: number
   data_type: 'uploaded' | 'custom' | 'generated'
   has_sample_data: boolean
+  column_types?: string  // JSON string of column type mappings
 }
 
 export interface SaveDatasetRequest {
